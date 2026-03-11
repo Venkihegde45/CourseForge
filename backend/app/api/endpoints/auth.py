@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.crud import crud_user
 from app.schemas.user import UserCreate, User as UserResponse
 from app.schemas.token import Token
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
