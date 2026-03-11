@@ -59,8 +59,26 @@ wheels/
 *.swp
 *.swo
 *~
+=======
+
+# Uploads
+uploads/
+server/uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+>>>>>>> 88faf081389f6a9102c8980b228513c51ca440a8
 
 # OS
 .DS_Store
 Thumbs.db
+<<<<<<< HEAD
 nul
+=======
+
+# MongoDB
+*.db
+>>>>>>> 88faf081389f6a9102c8980b228513c51ca440a8

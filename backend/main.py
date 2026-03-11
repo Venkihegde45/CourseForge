@@ -25,11 +25,16 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:5174"], # Vite default ports
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+>>>>>>> 88faf081389f6a9102c8980b228513c51ca440a8
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+<<<<<<< HEAD
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
 
@@ -55,3 +60,29 @@ def health_check(db: Session = Depends(get_db)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+=======
+# Create uploads directory
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# Include routers
+app.include_router(uploads.router, prefix="/api/v1", tags=["uploads"])
+app.include_router(courses.router, prefix="/api/v1", tags=["courses"])
+app.include_router(tutor.router, prefix="/api/v1", tags=["tutor"])
+app.include_router(progress.router, prefix="/api/v1", tags=["progress"])
+
+# Import and include export router
+from api import export
+app.include_router(export.router, prefix="/api/v1", tags=["export"])
+
+
+@app.get("/")
+async def root():
+    return {"message": "CourseForge API", "version": "1.0.0"}
+
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
+
+>>>>>>> 88faf081389f6a9102c8980b228513c51ca440a8
