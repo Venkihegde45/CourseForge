@@ -1,15 +1,16 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
 from app.core.config import settings
 from app.core.database import engine, get_db, Base
 from app.models import models
-from app.api.endpoints import auth, courses
+from app.api.endpoints import auth, courses, user
 
-# Create all tables in the database (This will throw an error if Postgres isn't running, which we will handle)
-# For production, we'll use Alembic migrations, but this is good for rapid prototyping
+# Create all tables in the database
 try:
     Base.metadata.create_all(bind=engine)
 except Exception as e:
@@ -24,25 +25,38 @@ app = FastAPI(
 # Allow React frontend to communicate with this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"], # Vite default ports
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
->>>>>>> 88faf081389f6a9102c8980b228513c51ca440a8
+    allow_origins=[
+        "http://localhost:5173", 
+        "http://localhost:5174",
+        "http://localhost:3000",
+        "http://localhost:3001"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-<<<<<<< HEAD
+# Include routers - Preferred 'app' structure
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
+app.include_router(user.router, prefix="/api/user", tags=["user"])
 
-
+# Include legacy routers if they exist (based on structure analysis)
+try:
+    from app.api.endpoints import uploads, tutor, progress
+    app.include_router(uploads.router, prefix="/api/v1", tags=["uploads"])
+    app.include_router(tutor.router, prefix="/api/v1", tags=["tutor"])
+    app.include_router(progress.router, prefix="/api/v1", tags=["progress"])
+    
+    # Mount uploads directory for static file access
+    os.makedirs("uploads", exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+except ImportError:
+    print("Warning: Some discovery-based routers could not be imported. Skipping legacy prefixes.")
 
 @app.get("/")
 def read_root():
-    return {"message": f"Welcome to the {settings.PROJECT_NAME} API"}
+    return {"message": f"Welcome to the {settings.PROJECT_NAME} API", "version": "1.0.0"}
 
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
@@ -54,35 +68,12 @@ def health_check(db: Session = Depends(get_db)):
         db.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Database connection failed: {str(e)}")
+        # Fallback for when DB is not connected but API is alive
+        return {"status": "partially_healthy", "database": "disconnected", "error": str(e)}
 
 # This block allows you to run the server by simply executing `python main.py`
 if __name__ == "__main__":
     import uvicorn
+    # Create uploads directory if it doesn't exist
+    os.makedirs("uploads", exist_ok=True)
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-=======
-# Create uploads directory
-os.makedirs("uploads", exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
-# Include routers
-app.include_router(uploads.router, prefix="/api/v1", tags=["uploads"])
-app.include_router(courses.router, prefix="/api/v1", tags=["courses"])
-app.include_router(tutor.router, prefix="/api/v1", tags=["tutor"])
-app.include_router(progress.router, prefix="/api/v1", tags=["progress"])
-
-# Import and include export router
-from api import export
-app.include_router(export.router, prefix="/api/v1", tags=["export"])
-
-
-@app.get("/")
-async def root():
-    return {"message": "CourseForge API", "version": "1.0.0"}
-
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
-
->>>>>>> 88faf081389f6a9102c8980b228513c51ca440a8

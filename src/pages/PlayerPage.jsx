@@ -13,64 +13,70 @@ import {
     Sparkles,
     Menu,
     X,
-    Cpu
+    Cpu,
+    ChevronRight, // Added
+    Clock, // Added
+    Award, // Added
+    Star, // Added
+    Search, // Added
+    Play, // Added
+    Book, // Added
+    BrainCircuit,
+    Plus,
+    FlaskConical,
+    Mic2
 } from 'lucide-react';
 import { useCourse } from '../lib/CourseContext';
 import { cn } from '../lib/utils';
 import Navbar from '../components/layout/Navbar';
 import ContentStage from '../components/player/ContentStage';
 import NovaChat from '../components/player/NovaChat';
+import QuizOverlay from '../components/player/QuizOverlay';
+import FlashcardModal from '../components/player/FlashcardModal';
+import MentorSidebar from '../components/player/MentorSidebar';
+import ForgeCastPlayer from '../components/player/ForgeCastPlayer';
+import { courseAPI } from '../lib/api';
+import GlassCard from '../components/ui/GlassCard';
 
 const PlayerPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { currentCourse, activeModuleIndex, updateProgress } = useCourse();
+    const { 
+        currentCourse, 
+        activeModuleIndex, 
+        activeTopicIndex, 
+        updateProgress, 
+        fetchTopicContent,
+        completeTopic
+    } = useCourse();
+    
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isNovaOpen, setIsNovaOpen] = useState(true);
-    const [difficulty, setDifficulty] = useState('starter'); // starter, intermediate, advanced
+    const [isQuizOpen, setIsQuizOpen] = useState(false);
+    const [isFlashcardsOpen, setIsFlashcardsOpen] = useState(false);
+    const [isMentorOpen, setIsMentorOpen] = useState(false);
+    const [isPodcastOpen, setIsPodcastOpen] = useState(false);
+    const [difficulty, setDifficulty] = useState('beginner');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const activeModule = currentCourse?.modules?.[activeModuleIndex] || { topics: [] };
+    const activeTopic = activeModule.topics?.[activeTopicIndex];
 
     useEffect(() => {
-        if (!currentCourse) {
-            // For development, we'll use fallback data if context is empty
+        if (activeTopic && !activeTopic.beginner_content && !isLoading) {
+            const loadContent = async () => {
+                setIsLoading(true);
+                try {
+                    await fetchTopicContent(activeTopic.id);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            loadContent();
         }
-    }, [currentCourse, navigate]);
+    }, [activeTopic, fetchTopicContent]);
 
-    // Mock data for initial development if context is empty
-    const course = currentCourse || {
-        title: "Quantum Computing: First Principles",
-        modules: [
-            {
-                id: 'm1',
-                title: 'The Quantum Worldview',
-                type: 'theory',
-                completed: true,
-                content: { text: "# Quantum Worldview\nWelcome to the universe of probabilities. In this module, we explore how the subatomic world defies classical logic.\n\nKey Concepts:\n- Wave-particle duality\n- Probability vs Determinism" }
-            },
-            {
-                id: 'm2',
-                title: 'Superposition & Qubits',
-                type: 'video',
-                completed: false,
-                content: { videoUrl: 'https://www.youtube.com/watch?v=lypnkNm0B4A' }
-            },
-            {
-                id: 'm3',
-                title: 'Quantum Gates Masterclass',
-                type: 'interactive',
-                completed: false,
-                content: { diagram: 'graph LR\n  H[Hadamard] --> S[Superposition]\n  X[Pauli-X] --> F[Bit Flip]' }
-            },
-            {
-                id: 'm4',
-                title: 'Algorithm Synthesis',
-                type: 'theory',
-                completed: false,
-                content: { text: "Once you master the gates, the algorithms follow. Shor's algorithm and Grover's search are the pillars of quantum speedup." }
-            },
-        ]
-    };
-
-    const activeModule = course.modules[activeModuleIndex] || course.modules[0];
+    if (!currentCourse) return <div className="h-screen flex items-center justify-center">Loading Course...</div>;
 
     return (
         <div className="h-screen bg-[#050511] text-white flex flex-col font-display overflow-hidden">
@@ -83,6 +89,19 @@ const PlayerPage = () => {
                     >
                         Home
                     </button>
+                    <button 
+                        onClick={() => setIsFlashcardsOpen(true)}
+                        className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                    >
+                        Flashcards
+                    </button>
+                    <button 
+                        onClick={() => setIsPodcastOpen(true)}
+                        className="px-3 py-1.5 bg-primary/20 border border-primary/20 rounded-full text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary hover:text-white transition-all flex items-center gap-2"
+                    >
+                        <Mic2 className="w-3 h-3" />
+                        ForgeCast
+                    </button>
                     <div className="h-4 w-[1px] bg-white/10" />
                     <button
                         onClick={() => navigate('/dashboard')}
@@ -92,15 +111,15 @@ const PlayerPage = () => {
                     </button>
                     <div className="h-4 w-[1px] bg-white/10" />
                     <div>
-                        <h1 className="text-sm font-black tracking-tight uppercase">{course.title}</h1>
-                        <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Module: {activeModule.title}</p>
+                        <h1 className="text-sm font-black tracking-tight uppercase">{currentCourse.title}</h1>
+                        <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Topic: {activeTopic?.title || 'Loading...'}</p>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-6">
                     {/* Difficulty Toggle */}
                     <div className="hidden md:flex items-center bg-black/40 border border-white/10 rounded-full p-1 self-center">
-                        {['starter', 'intermediate', 'advanced'].map((lvl) => (
+                        {['beginner', 'intermediate', 'expert'].map((lvl) => (
                             <button
                                 key={lvl}
                                 onClick={() => setDifficulty(lvl)}
@@ -136,38 +155,40 @@ const PlayerPage = () => {
                     animate={{ width: isSidebarOpen ? 320 : 0, opacity: isSidebarOpen ? 1 : 0 }}
                     className="border-r border-white/5 bg-white/[0.01] flex flex-col overflow-hidden"
                 >
-                    <div className="p-6">
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-6">Course Path</h3>
-                        <div className="space-y-2">
-                            {course.modules.map((mod, idx) => (
-                                <button
-                                    key={mod.id}
-                                    onClick={() => updateProgress(idx)}
-                                    className={cn(
-                                        "w-full p-4 rounded-2xl flex items-center gap-4 transition-all group relative overflow-hidden",
-                                        activeModuleIndex === idx
-                                            ? "bg-primary/10 border border-primary/20 text-white"
-                                            : "hover:bg-white/5 text-white/40 border border-transparent"
-                                    )}
-                                >
-                                    {activeModuleIndex === idx && (
-                                        <motion.div
-                                            layoutId="active-module-indicator"
-                                            className="absolute left-0 top-0 bottom-0 w-1 bg-primary"
-                                        />
-                                    )}
-                                    <div className={cn(
-                                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
-                                        mod.completed ? "bg-emerald-500/20 text-emerald-400" :
-                                            activeModuleIndex === idx ? "bg-primary/20 text-primary" : "bg-white/5 text-white/20"
-                                    )}>
-                                        {mod.completed ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
+                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-6 font-mono">Curriculum_Map.v2</h3>
+                        <div className="space-y-4">
+                            {currentCourse.modules.map((mod, mIdx) => (
+                                <div key={mod.id} className="space-y-2">
+                                    <div className="px-2 py-1 flex items-center justify-between">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-white/10">Module {mIdx + 1}</p>
+                                        <div className="h-px w-full bg-white/5 ml-4" />
                                     </div>
-                                    <div className="text-left">
-                                        <p className="text-xs font-bold leading-tight">{mod.title}</p>
-                                        <p className="text-[9px] uppercase tracking-widest opacity-40 mt-1">{mod.type}</p>
+                                    <h4 className="px-2 text-xs font-black text-white/60 mb-2">{mod.title}</h4>
+                                    <div className="space-y-1">
+                                        {mod.topics.map((topic, tIdx) => (
+                                            <button
+                                                key={topic.id}
+                                                onClick={() => updateProgress(mIdx, tIdx)}
+                                                className={cn(
+                                                    "w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-all group",
+                                                    activeModuleIndex === mIdx && activeTopicIndex === tIdx
+                                                        ? "bg-primary/20 border border-primary/20 text-white"
+                                                        : "hover:bg-white/5 text-white/30 border border-transparent"
+                                                )}
+                                            >
+                                                <div className={cn(
+                                                    "w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-[10px] font-black",
+                                                    topic.completed ? "bg-emerald-500/20 text-emerald-400" :
+                                                        (activeModuleIndex === mIdx && activeTopicIndex === tIdx) ? "bg-primary text-white" : "bg-white/5"
+                                                )}>
+                                                    {topic.completed ? <CheckCircle2 className="w-3 h-3" /> : tIdx + 1}
+                                                </div>
+                                                <span className="text-[11px] font-bold text-left leading-tight">{topic.title}</span>
+                                            </button>
+                                        ))}
                                     </div>
-                                </button>
+                                </div>
                             ))}
                         </div>
                     </div>
@@ -181,48 +202,106 @@ const PlayerPage = () => {
                         <div className="max-w-4xl mx-auto">
                             <AnimatePresence mode="wait">
                                 <motion.div
-                                    key={activeModuleIndex}
+                                    key={`${activeModuleIndex}-${activeTopicIndex}`}
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -20 }}
                                     transition={{ duration: 0.4 }}
                                 >
-                                    <div className="mb-12">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-black uppercase tracking-widest text-primary">
-                                                Module {activeModuleIndex + 1}
-                                            </span>
-                                            <div className="h-px flex-1 bg-white/5" />
+                                    {isLoading ? (
+                                        <div className="flex flex-col items-center justify-center py-20 space-y-6">
+                                            <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary animate-pulse">Synthesizing topic content...</p>
                                         </div>
-                                        <h2 className="text-5xl font-black mb-8 tracking-tighter leading-none">{activeModule.title}</h2>
-                                    </div>
+                                    ) : (
+                                        <>
+                                            <div className="mb-12 text-center md:text-left">
+                                                <div className="flex items-center justify-center md:justify-start gap-3 mb-6">
+                                                    <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-black uppercase tracking-widest text-primary">
+                                                        Module {activeModuleIndex + 1}: Topic {activeTopicIndex + 1}
+                                                    </span>
+                                                    <div className="h-px flex-1 bg-white/5" />
+                                                </div>
+                                                <h2 className="text-5xl font-black mb-8 tracking-tighter leading-tight">{activeTopic?.title}</h2>
+                                            </div>
 
-                                    <ContentStage activeModule={activeModule} />
+                                            <ContentStage 
+                                                activeTopic={activeTopic} 
+                                                onStartQuiz={() => setIsQuizOpen(true)}
+                                            />
+                                        </>
+                                    )}
                                 </motion.div>
                             </AnimatePresence>
                         </div>
                     </div>
 
+                    <AnimatePresence>
+                        {isQuizOpen && (
+                            <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+                                <motion.div 
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+                                    onClick={() => setIsQuizOpen(false)}
+                                />
+                                <QuizOverlay 
+                                    quizzes={activeTopic?.quizzes || []}
+                                    onComplete={async (score) => {
+                                        await completeTopic(activeTopic.id);
+                                        setIsQuizOpen(false);
+                                    }}
+                                    onClose={() => setIsQuizOpen(false)}
+                                />
+                            </div>
+                        )}
+                    </AnimatePresence>
+
                     {/* Module Navigation Footer */}
                     <div className="p-6 border-t border-white/5 bg-white/[0.02] backdrop-blur-md flex items-center justify-between">
                         <button
-                            onClick={() => activeModuleIndex > 0 && updateProgress(activeModuleIndex - 1)}
-                            disabled={activeModuleIndex === 0}
+                            onClick={() => {
+                                if (activeTopicIndex > 0) {
+                                    updateProgress(activeModuleIndex, activeTopicIndex - 1);
+                                } else if (activeModuleIndex > 0) {
+                                    const prevMod = currentCourse.modules[activeModuleIndex - 1];
+                                    updateProgress(activeModuleIndex - 1, prevMod.topics.length - 1);
+                                }
+                            }}
+                            disabled={activeModuleIndex === 0 && activeTopicIndex === 0}
                             className="flex items-center gap-3 text-white/40 hover:text-white transition-all text-xs font-bold uppercase tracking-widest disabled:opacity-20"
                         >
-                            <ChevronLeft className="w-4 h-4" /> Previous Module
+                            <ChevronLeft className="w-4 h-4" /> Previous
                         </button>
-                        <div className="flex gap-2">
-                            {[...Array(course.modules.length)].map((_, i) => (
-                                <div key={i} className={cn(
-                                    "h-1 rounded-full transition-all",
-                                    i === activeModuleIndex ? "w-8 bg-primary" : "w-2 bg-white/10"
-                                )} />
-                            ))}
+                        <div className="flex gap-2"> {/* Modified: Added a div for the two buttons */}
+                            <button 
+                                onClick={() => setIsMentorOpen(true)}
+                                className="flex-1 py-4 bg-white/[0.03] border border-white/10 rounded-2xl flex items-center justify-center gap-3 hover:bg-primary transition-all group"
+                            >
+                                <MessageSquare className="w-5 h-5 text-primary group-hover:text-white" />
+                                <span className="text-[10px] font-bold uppercase tracking-widest">AI Mentor</span>
+                            </button>
+                            <button
+                                onClick={() => setIsFlashcardsOpen(true)} // Changed from setShowFlashcards to setIsFlashcardsOpen
+                                className="w-14 h-14 bg-white/[0.03] border border-white/10 rounded-2xl flex items-center justify-center hover:bg-white/10 transition-all"
+                            >
+                                <BrainCircuit className="w-6 h-6 text-white/40" />
+                            </button>
                         </div>
                         <button
-                            onClick={() => activeModuleIndex < course.modules.length - 1 && updateProgress(activeModuleIndex + 1)}
-                            disabled={activeModuleIndex === course.modules.length - 1}
+                            onClick={async () => {
+                                if (activeTopic && !activeTopic.completed) {
+                                    await completeTopic(activeTopic.id);
+                                }
+
+                                if (activeTopicIndex < activeModule.topics.length - 1) {
+                                    updateProgress(activeModuleIndex, activeTopicIndex + 1);
+                                } else if (activeModuleIndex < currentCourse.modules.length - 1) {
+                                    updateProgress(activeModuleIndex + 1, 0);
+                                }
+                            }}
+                            disabled={activeModuleIndex === currentCourse.modules.length - 1 && activeTopicIndex === activeModule.topics.length - 1}
                             className="px-6 py-3 bg-white text-black font-black rounded-xl flex items-center gap-3 hover:bg-primary hover:text-white transition-all text-xs uppercase tracking-widest disabled:opacity-20"
                         >
                             Continue <ArrowRight className="w-4 h-4" />

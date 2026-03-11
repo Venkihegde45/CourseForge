@@ -8,7 +8,7 @@ const InputMethods = ({ activeTab, setActiveTab, level, setLevel, onForge }) => 
     const tabs = [
         { id: 'search', label: 'Topic Search', icon: <Search className="w-5 h-5" />, desc: 'Simple text input' },
         { id: 'pdf', label: 'PDF Upload', icon: <FileUp className="w-5 h-5" />, desc: 'Deep-scan docs' },
-        { id: 'image', label: 'Image Scan', icon: <Camera className="w-5 h-5" />, desc: 'OCR from notes' }
+        { id: 'url', label: 'Link / YouTube', icon: <BrainCircuit className="w-5 h-5" />, desc: 'Analyze web content' }
     ];
 
     const levels = [
@@ -18,6 +18,15 @@ const InputMethods = ({ activeTab, setActiveTab, level, setLevel, onForge }) => 
     ];
 
     const [topic, setTopic] = React.useState('');
+    const [url, setUrl] = React.useState('');
+    const [file, setFile] = React.useState(null);
+    const fileInputRef = React.useRef(null);
+
+    const handleForge = () => {
+        if (activeTab === 'search') onForge({ type: 'text', value: topic });
+        else if (activeTab === 'pdf') onForge({ type: 'file', value: file });
+        else if (activeTab === 'url') onForge({ type: 'url', value: url });
+    };
 
     return (
         <div className="space-y-8">
@@ -62,7 +71,7 @@ const InputMethods = ({ activeTab, setActiveTab, level, setLevel, onForge }) => 
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                                     <div className="h-8 w-[1px] bg-white/10 mr-2" />
                                     <button
-                                        onClick={() => onForge(topic)}
+                                        onClick={handleForge}
                                         className="p-3 rounded-xl bg-primary/20 text-primary hover:bg-primary transition-all hover:text-white"
                                     >
                                         <Search className="w-5 h-5" />
@@ -78,36 +87,57 @@ const InputMethods = ({ activeTab, setActiveTab, level, setLevel, onForge }) => 
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
+                            onClick={() => fileInputRef.current?.click()}
                             className="border-2 border-dashed border-white/10 rounded-[2.5rem] p-10 flex flex-col items-center justify-center gap-6 bg-white/[0.01] hover:bg-white/[0.03] hover:border-primary/30 transition-all cursor-pointer group relative overflow-hidden"
                         >
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept=".pdf"
+                                onChange={(e) => setFile(e.target.files[0])}
+                            />
                             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                             <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center group-hover:scale-110 group-hover:bg-primary/20 transition-all duration-500 shadow-2xl relative">
                                 <FileUp className="w-8 h-8 text-primary" />
                                 <div className="absolute inset-0 bg-primary/20 blur-2xl opacity-0 group-hover:opacity-50 transition-opacity" />
                             </div>
                             <div className="text-center relative z-10">
-                                <p className="text-xl font-black tracking-tighter mb-1">Drag & Drop PDF</p>
-                                <p className="text-white/30 text-[10px] font-black uppercase tracking-[0.2em]">Deep-scanning for technical documents</p>
+                                <p className="text-xl font-black tracking-tighter mb-1">
+                                    {file ? file.name : 'Drag & Drop PDF'}
+                                </p>
+                                <p className="text-white/30 text-[10px] font-black uppercase tracking-[0.2em]">
+                                    {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Deep-scanning for technical documents'}
+                                </p>
                             </div>
                         </motion.div>
                     )}
 
-                    {activeTab === 'image' && (
+                    {activeTab === 'url' && (
                         <motion.div
-                            key="image"
+                            key="url"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className="border-2 border-dashed border-white/10 rounded-[2.5rem] p-10 flex flex-col items-center justify-center gap-6 bg-white/[0.01] hover:bg-white/[0.03] hover:border-secondary/30 transition-all cursor-pointer group relative overflow-hidden"
+                            className="space-y-4"
                         >
-                            <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center group-hover:scale-110 group-hover:bg-secondary/20 transition-all duration-500 shadow-2xl relative">
-                                <Camera className="w-8 h-8 text-secondary" />
-                                <div className="absolute inset-0 bg-secondary/20 blur-2xl opacity-0 group-hover:opacity-50 transition-opacity" />
-                            </div>
-                            <div className="text-center relative z-10">
-                                <p className="text-xl font-black tracking-tighter mb-1">Upload Image / Scan Notes</p>
-                                <p className="text-white/30 text-[10px] font-black uppercase tracking-[0.2em]">Convert photos of whiteboards or books</p>
+                            <div className="relative group">
+                                <input
+                                    type="text"
+                                    value={url}
+                                    onChange={(e) => setUrl(e.target.value)}
+                                    placeholder="Paste YouTube link or Doc URL (e.g., https://...)"
+                                    className="w-full bg-white/5 border border-white/10 rounded-[2rem] px-8 py-6 text-xl focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all placeholder:text-white/10 font-medium"
+                                />
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                    <div className="h-8 w-[1px] bg-white/10 mr-2" />
+                                    <button
+                                        onClick={handleForge}
+                                        className="p-3 rounded-xl bg-primary/20 text-primary hover:bg-primary transition-all hover:text-white"
+                                    >
+                                        <BrainCircuit className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     )}
@@ -174,8 +204,8 @@ const InputMethods = ({ activeTab, setActiveTab, level, setLevel, onForge }) => 
 
             {/* Action Button */}
             <button
-                onClick={() => onForge(topic)}
-                disabled={activeTab === 'pdf' || activeTab === 'image'} // Disabled for now until logic added
+                onClick={handleForge}
+                disabled={(activeTab === 'pdf' && !file) || (activeTab === 'url' && !url) || (activeTab === 'search' && !topic)}
                 className="w-full bg-primary hover:bg-primary/90 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed group"
             >
                 <BrainCircuit className="w-5 h-5 group-hover:rotate-12 transition-transform" />

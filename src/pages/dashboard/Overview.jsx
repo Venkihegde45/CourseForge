@@ -1,36 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Clock, Trophy, Flame, Sparkles, Zap, BrainCircuit, ChevronRight, Timer } from 'lucide-react';
+import { BookOpen, Clock, Trophy, Flame, Sparkles, Zap, BrainCircuit, ChevronRight, Timer, Award, Network } from 'lucide-react';
 import KnowledgeGraph from '../../components/dashboard/KnowledgeGraph';
+import StatCard from '../../components/dashboard/StatCard'; // Assuming this is the new imported StatCard
 import CourseCard from '../../components/dashboard/CourseCard';
 import CourseCarousel from '../../components/dashboard/CourseCarousel';
 import { useCourse } from '../../lib/CourseContext';
+import LeaderboardModal from '../../components/social/LeaderboardModal';
+import KnowledgeMapModal from '../../components/dashboard/KnowledgeMapModal';
 
-const StatCard = ({ label, value, icon, sub, trend }) => (
-    <div className="bg-[#0A0A1F]/40 backdrop-blur-3xl border border-white/5 rounded-[2rem] p-6 hover:border-primary/20 transition-all group overflow-hidden relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-        <div className="flex items-center gap-4 relative z-10">
-            <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:border-primary/30 transition-all">
-                {icon}
-            </div>
-            <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-1">{label}</p>
-                <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black tracking-tighter">{value}</span>
-                    <span className="text-[10px] font-bold text-primary italic">{sub}</span>
-                </div>
-            </div>
-            {trend && (
-                <div className="ml-auto px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                    <span className="text-[8px] font-black text-emerald-500">+{trend}%</span>
-                </div>
-            )}
-        </div>
-    </div>
-);
 
 const Overview = () => {
     const { courses, globalMemory } = useCourse();
+    const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+    const [isMapOpen, setIsMapOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Calculate level: floor(sqrt(XP / 100)) + 1
+    const currentLevel = Math.floor(Math.sqrt((globalMemory?.xp || 0) / 100)) + 1;
 
     const activeCourses = courses.length > 0 ? courses.map(c => ({ ...c, progress: 0 })) : [
         {
@@ -72,8 +59,9 @@ const Overview = () => {
                             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Online</span>
                         </div>
-                        <h1 className="text-4xl font-black tracking-tighter">
+                        <h1 className="text-4xl font-black tracking-tighter flex items-center gap-3">
                             Welcome back, <span className="text-gradient">{globalMemory?.userName || 'Explorer'}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">LVL {currentLevel}</span>
                         </h1>
                     </div>
                 </motion.div>
@@ -92,7 +80,7 @@ const Overview = () => {
                     </div>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-1">Current Streak</p>
-                        <p className="text-4xl font-black tracking-tighter text-orange-500">12 Days</p>
+                        <p className="text-4xl font-black tracking-tighter text-orange-500">{globalMemory?.streakDays || 0} Days</p>
                     </div>
                 </motion.div>
             </div>
@@ -102,29 +90,29 @@ const Overview = () => {
                 <div className="lg:col-span-8 flex flex-col gap-8">
                     <KnowledgeGraph />
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <StatCard
-                            icon={<BrainCircuit className="w-5 h-5" />}
-                            label="Courses"
-                            value={courses.length}
-                            trend="+2 this week"
-                            description="Total Courses"
-                        />
-                        <StatCard
-                            icon={<Timer className="w-5 h-5" />}
-                            label="Time Spent"
-                            value="12.4h"
-                            trend="+15%"
-                            description="Completed Lessons"
-                        />
-                        <StatCard
-                            icon={<Zap className="w-5 h-5" />}
-                            label="Total Score"
-                            value="2,450"
-                            trend="+450"
-                            description="Quiz Score"
-                        />
-                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <StatCard
+                        title="Global Index"
+                        value="Top 1%"
+                        trend="Rank #3"
+                        icon={<Award className="w-6 h-6" />}
+                        onClick={() => setIsLeaderboardOpen(true)}
+                    />
+                    <StatCard
+                        title="Knowledge Map"
+                        value="Ecosystem"
+                        trend="3D View"
+                        icon={<Network className="w-6 h-6" />}
+                        onClick={() => setIsMapOpen(true)}
+                        color="accent"
+                    />
+                    <StatCard
+                        title="Forge Streak"
+                        value="12 Days"
+                        trend="Personal Best"
+                        icon={<Zap className="w-6 h-6" />}
+                    />
+                </div>
                 </div>
 
                 {/* Right Column: Achievements & Activities */}
@@ -154,6 +142,38 @@ const Overview = () => {
                             ))}
                         </div>
                     </div>
+
+                    {/* Global Rankings Card */}
+                    <div 
+                        onClick={() => setIsLeaderboardOpen(true)}
+                        className="bg-gradient-to-br from-yellow-500/10 to-transparent backdrop-blur-3xl border border-yellow-500/20 rounded-[2.5rem] p-8 relative overflow-hidden group cursor-pointer hover:border-yellow-500/40 transition-all"
+                    >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 blur-[60px] rounded-full -mr-10 -mt-10" />
+                        <div className="flex items-center justify-between mb-4">
+                            <Trophy className="w-8 h-8 text-yellow-500" />
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-500/20 rounded-lg border border-yellow-500/30">
+                                <span className="text-[8px] font-black text-yellow-500 uppercase tracking-widest">Global Index</span>
+                            </div>
+                        </div>
+                        <h3 className="text-xl font-black tracking-tight mb-2 italic">LEADERBOARD</h3>
+                        <p className="text-xs text-white/40 font-medium leading-relaxed">
+                            Compare your metrics with <br /> top-tier knowledge forgers.
+                        </p>
+                        <div className="mt-8 flex items-center gap-2 text-yellow-500">
+                            <span className="text-[10px] font-black uppercase tracking-widest">Open Rankings</span>
+                            <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                    </div>
+
+                    <LeaderboardModal 
+                        isOpen={isLeaderboardOpen} 
+                        onClose={() => setIsLeaderboardOpen(false)} 
+                    />
+
+                    <KnowledgeMapModal 
+                        isOpen={isMapOpen}
+                        onClose={() => setIsMapOpen(false)}
+                    />
                 </div>
             </div>
 

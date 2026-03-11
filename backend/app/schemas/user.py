@@ -11,10 +11,10 @@ class UserCreate(UserBase):
     password: str
 
 # Properties returned by API
-class UserResponse(UserBase):
+class User(UserBase):
     id: int
-    xp: int
-    streak_days: int
+    xp: int = 0
+    streak_days: int = 0
 
     class Config:
         from_attributes = True # Allows Pydantic to read ORM models

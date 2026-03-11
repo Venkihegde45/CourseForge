@@ -1,21 +1,19 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap, Sparkles, BrainCircuit, CheckCircle2, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useCourse } from '../../lib/CourseContext';
 import { cn } from '../../lib/utils';
 
 const Exams = () => {
+    const { courses, globalMemory, selectCourse } = useCourse();
+    const navigate = useNavigate();
     const [isExamMode, setIsExamMode] = useState(false);
 
     const stats = [
-        { label: 'Exams Completed', value: '12', icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" /> },
-        { label: 'Average Mastery', value: '88%', icon: <Sparkles className="w-5 h-5 text-primary" /> },
-        { label: 'Neural Accuracy', value: '94%', icon: <Zap className="w-5 h-5 text-yellow-500" /> }
-    ];
-
-    const assessments = [
-        { title: 'Quantum Mechanics: Fundamentals', modules: 5, difficulty: 'Expert', status: 'Ready' },
-        { title: 'Neural Architectures v2', modules: 8, difficulty: 'Advanced', status: 'In Progress' },
-        { title: 'Advanced Thermodynamics', modules: 4, difficulty: 'Intermediate', status: 'Ready' }
+        { label: 'Topics Completed', value: globalMemory?.totalTopicsDone || 0, icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" /> },
+        { label: 'Average Mastery', value: `${Math.round(globalMemory?.totalMastery || 0)}%`, icon: <Sparkles className="w-5 h-5 text-primary" /> },
+        { label: 'Total XP', value: globalMemory?.xp || 0, icon: <Zap className="w-5 h-5 text-yellow-500" /> }
     ];
 
     if (isExamMode) {
@@ -120,38 +118,49 @@ const Exams = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8">
                 <div className="lg:col-span-8 space-y-6">
-                    <h2 className="text-2xl font-black tracking-tight mb-8 ml-4">Available Protocols</h2>
+                    <h2 className="text-2xl font-black tracking-tight mb-8 ml-4 font-mono">Protocols_Ready</h2>
                     <div className="space-y-4">
-                        {assessments.map((exam, i) => (
-                            <motion.div
-                                key={i}
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: i * 0.1 }}
-                                className="group bg-[#0A0A1F]/40 backdrop-blur-3xl border border-white/5 rounded-[2rem] p-8 flex items-center justify-between hover:border-accent/30 transition-all cursor-pointer relative overflow-hidden"
-                            >
-                                <div className="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="flex items-center gap-8 relative z-10">
-                                    <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center group-hover:bg-accent/20 group-hover:border-accent/30 transition-all">
-                                        <BrainCircuit className="w-8 h-8 text-white/20 group-hover:text-accent transition-colors" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold mb-1">{exam.title}</h3>
-                                        <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-white/20">
-                                            <span className="flex items-center gap-1.5"><GraduationCap className="w-3 h-3" /> {exam.modules} Modules</span>
-                                            <span className="w-1.5 h-1.5 rounded-full bg-white/10" />
-                                            <span>{exam.difficulty}</span>
+                        {courses.length === 0 ? (
+                            <div className="p-12 text-center bg-white/[0.02] border border-dashed border-white/10 rounded-3xl text-white/20 uppercase font-black tracking-widest">
+                                No assessment protocols active. Forge a course first.
+                            </div>
+                        ) : (
+                            courses.map((course, i) => (
+                                <motion.div
+                                    key={course.id}
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: i * 0.1 }}
+                                    onClick={() => {
+                                        selectCourse(course.id);
+                                        navigate(`/player/${course.id}`);
+                                    }}
+                                    className="group bg-[#0A0A1F]/40 backdrop-blur-3xl border border-white/5 rounded-[2rem] p-8 flex items-center justify-between hover:border-accent/30 transition-all cursor-pointer relative overflow-hidden"
+                                >
+                                    <div className="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <div className="flex items-center gap-8 relative z-10">
+                                        <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center group-hover:bg-accent/20 group-hover:border-accent/30 transition-all">
+                                            <BrainCircuit className="w-8 h-8 text-white/20 group-hover:text-accent transition-colors" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-bold mb-1">{course.title}</h3>
+                                            <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-white/20">
+                                                <span className="flex items-center gap-1.5"><GraduationCap className="w-3 h-3" /> {course.modules ? course.modules.length : '??'} Modules</span>
+                                                <span className="w-1.5 h-1.5 rounded-full bg-white/10" />
+                                                <span>{course.difficulty || 'Expert'}</span>
+                                                <span className="w-1.5 h-1.5 rounded-full bg-white/10" />
+                                                <span className="text-primary">{course.progress || 0}% Done</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <button
-                                    onClick={() => setIsExamMode(true)}
-                                    className="px-8 py-4 bg-white/[0.03] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest group-hover:bg-accent group-hover:text-white transition-all relative z-10"
-                                >
-                                    Start Assessment
-                                </button>
-                            </motion.div>
-                        ))}
+                                    <button
+                                        className="px-8 py-4 bg-white/[0.03] border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest group-hover:bg-accent group-hover:text-white transition-all relative z-10"
+                                    >
+                                        Run Assessment
+                                    </button>
+                                </motion.div>
+                            ))
+                        )}
                     </div>
                 </div>
 

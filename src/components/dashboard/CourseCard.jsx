@@ -1,14 +1,19 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Play, Clock, BookOpen, ChevronRight, Sparkles } from 'lucide-react';
+import { BookOpen, Award, ArrowRight, Clock, Star, Brain, Play, Calendar, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
+import StudyPlannerModal from '../dashboard/StudyPlannerModal';
 
-const CourseCard = ({ course, index }) => {
+const CourseCard = ({ course }) => {
+    const navigate = useNavigate();
+    const [isPlannerOpen, setIsPlannerOpen] = React.useState(false);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
+            transition={{ delay: 0.1 }}
             className="group relative bg-[#0A0A1F]/40 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-8 hover:border-primary/30 transition-all duration-500 overflow-hidden"
         >
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -49,13 +54,13 @@ const CourseCard = ({ course, index }) => {
                     <div className="space-y-2 mb-6">
                         <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white/20">
                             <span>Course Progress</span>
-                            <span className="text-white/40">{course.currentChapter} / {course.totalChapters} Units</span>
+                            <span className="text-white/40">{course.currentChapter || 0} / {course.totalChapters || 1} Units</span>
                         </div>
                         <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden relative">
                             <motion.div
                                 className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary to-accent"
                                 initial={{ width: 0 }}
-                                animate={{ width: `${course.progress}%` }}
+                                animate={{ width: `${course.progress || 0}%` }}
                                 transition={{ duration: 1.5, ease: "easeOut" }}
                             />
                         </div>
@@ -73,15 +78,38 @@ const CourseCard = ({ course, index }) => {
                             </div>
                         </div>
 
-                        <button className="flex items-center gap-2 group/btn">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover/btn:text-white transition-colors">Resume Learning</span>
-                            <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover/btn:bg-primary group-hover/btn:text-white transition-all">
-                                <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-0.5 transition-transform" />
-                            </div>
-                        </button>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/player/${course.id}`);
+                                }}
+                                className="flex-1 py-3 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all flex items-center justify-center gap-2 group/btn"
+                            >
+                                <Play className="w-3 h-3 fill-current" />
+                                Resume
+                            </button>
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsPlannerOpen(true);
+                                }}
+                                className="px-4 py-3 bg-white/[0.03] border border-white/10 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                title="AI Roadmap"
+                            >
+                                <Calendar className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <StudyPlannerModal 
+                isOpen={isPlannerOpen}
+                onClose={() => setIsPlannerOpen(false)}
+                courseId={course.id}
+                courseTitle={course.title}
+            />
         </motion.div>
     );
 };

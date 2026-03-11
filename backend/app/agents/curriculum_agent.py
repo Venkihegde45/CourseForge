@@ -1,18 +1,16 @@
 """
 Curriculum Architect Agent
-Powered by Google Gemini via LangChain.
-Takes a topic and generates a structured, chapter-wise course syllabus as JSON.
+Powered by Google Gemini.
+Generates a structured course syllabus (Modules and Topics) as JSON.
 """
 import json
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.core.config import settings
 
-# Initialize the Gemini model using the free tier
-# Note: gemini-2.0-flash is currently hitting quota limits in this project.
-# gemini-2.5-flash (preview) verified as working with the current API key.
+# Initialize the Gemini model
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash", 
+    model="gemini-2.0-flash", # Using flash for speed/cost
     google_api_key=settings.GEMINI_API_KEY,
     temperature=0.7,
 )
@@ -27,30 +25,40 @@ The JSON must follow this exact structure:
   "title": "Course Title Here",
   "description": "A one-paragraph description of this course",
   "difficulty": "starter",
-  "chapters": [
+  "modules": [
     {
       "order": 1,
-      "title": "Chapter Title",
-      "objective": "What the learner will know after this chapter",
-      "key_concepts": ["concept1", "concept2", "concept3"],
-      "content_summary": "2-3 paragraph detailed explanation of this chapter's content"
+      "title": "Module Title",
+      "description": "Short description of the module",
+      "topics": [
+        {
+          "order": 1,
+          "title": "Specific Topic Title"
+        }
+      ]
     }
   ]
 }
 
-Create exactly 5 chapters. Be thorough, educational, and structured."""
+Create 4-6 modules. Each module should contain 4-8 specific topics. 
+Be thorough, educational, and ensure a logical learning flow from basics to advanced."""
 
-def generate_course_syllabus(topic: str, difficulty: str = "starter") -> dict:
+def generate_course_syllabus(topic: str, difficulty: str = "Beginner", context_text: str = None) -> dict:
     """
-    Takes a topic string and calls Gemini to generate a full course syllabus.
-    Returns a Python dict representing the course structure.
+    Generates a course syllabus using the LangChain Gemini model.
+    If context_text is provided, it grounds the curriculum in that specific material.
     """
-    user_prompt = f"""Create a complete {difficulty}-level course on the following topic:
+    user_prompt_parts = [f"Create a complete {difficulty}-level course on the following topic:"]
+    user_prompt_parts.append(f"Topic: {topic}")
 
-Topic: {topic}
+    if context_text:
+        # Limit context_text to avoid exceeding token limits, 15000 chars is a rough estimate
+        user_prompt_parts.append(f"\nBase the following curriculum strictly on this source material:\n{context_text[:15000]}")
 
-Generate a 5-chapter course with clear objectives and detailed content summaries for each chapter.
-Remember: respond ONLY with the JSON object."""
+    user_prompt_parts.append("\nGenerate a structured syllabus with 4-6 modules and clear topic titles.")
+    user_prompt_parts.append("Remember: respond ONLY with the JSON object.")
+    
+    user_prompt = "\n".join(user_prompt_parts)
 
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
@@ -60,11 +68,18 @@ Remember: respond ONLY with the JSON object."""
     response = llm.invoke(messages)
     raw = response.content.strip()
 
-    # Clean up if Gemini wrapped in markdown code blocks (defensive)
+    # Clean up if Gemini wrapped in markdown code blocks
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
+        elif raw.startswith("\n"):
+            raw = raw[1:]
+    
+    # Final strip to be safe
+    raw = raw.strip()
+    if raw.endswith("```"):
+        raw = raw[:-3].strip()
 
     course_data = json.loads(raw)
     return course_data

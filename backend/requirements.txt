@@ -25,9 +25,3 @@ langchain==0.0.340
 langchain-openai==0.0.2
 chromadb==0.4.18
 numpy==1.26.2
-
-
-
-
-
->>>>>>> 88faf081389f6a9102c8980b228513c51ca440a8

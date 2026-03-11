@@ -106,11 +106,11 @@ const AnalyzerPage = () => {
     }, [phase, generatedCourse, navigate]);
 
 
-    const startForging = async (topic) => {
-        const topicStr = typeof topic === 'string' ? topic : (topic?.target?.value || '');
-        if (!topicStr) return;
+    const startForging = async (payload) => {
+        if (!payload || !payload.value) return;
 
-        setCurrentTopic(topicStr);
+        const { type, value } = payload;
+        setCurrentTopic(type === 'file' ? value.name : value);
         setPhase('forging');
         setLogs([]);
         setAgentStatuses({ architect: 'idle', scribe: 'idle', illustrator: 'idle', warden: 'idle' });
@@ -118,58 +118,55 @@ const AnalyzerPage = () => {
         const timeStr = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
 
         try {
-            // Step 1: Architect Start
             setAgentStatuses(prev => ({ ...prev, architect: 'working' }));
-            setLogs([{ text: 'START: Initializing AI Curriculum Architect...', time: timeStr(), type: 'info' }]);
+            setLogs([{ text: `START: Initializing ${type.toUpperCase()} Analysis Protocol...`, time: timeStr(), type: 'info' }]);
 
-            // Real API Call
-            const course = await courseAPI.generate(topicStr, level);
+            // Real API Call based on type
+            let course;
+            if (type === 'text') {
+                course = await courseAPI.generate(value, level);
+            } else if (type === 'file') {
+                setLogs(prev => [...prev, { text: 'INGESTION: Extracting neural pathways from PDF...', time: timeStr(), type: 'info' }]);
+                course = await courseAPI.generateFromFile(value, level);
+            } else if (type === 'url') {
+                setLogs(prev => [...prev, { text: 'SCRAPING: Synching with remote data source...', time: timeStr(), type: 'info' }]);
+                course = await courseAPI.generateFromUrl(value, level);
+            }
 
-            // Step 2: Scribe & Illustrator (Parallel feel)
             setAgentStatuses(prev => ({ ...prev, architect: 'complete', scribe: 'working' }));
             setLogs(prev => [...prev,
-            { text: 'PLANNER: Course structure synthesized successfully.', time: timeStr(), type: 'success' },
-            { text: 'WRITING: Generating detailed lesson content...', time: timeStr(), type: 'info' }
+            { text: 'PLANNER: Multimodal curriculum forged.', time: timeStr(), type: 'success' },
+            { text: 'WRITING: Synthesizing contextual lessons...', time: timeStr(), type: 'info' }
             ]);
 
-            await new Promise(r => setTimeout(r, 1500));
+            await new Promise(r => setTimeout(r, 1000));
             setAgentStatuses(prev => ({ ...prev, scribe: 'complete', illustrator: 'working' }));
-            setLogs(prev => [...prev, { text: 'DESIGN: Crafting visual assets and styles...', time: timeStr(), type: 'info' }]);
+            setLogs(prev => [...prev, { text: 'DESIGN: Visualizing data nodes...', time: timeStr(), type: 'info' }]);
 
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise(r => setTimeout(r, 800));
             setAgentStatuses(prev => ({ ...prev, illustrator: 'complete', warden: 'working' }));
-            setLogs(prev => [...prev, { text: 'WARDEN: Validating curriculum for coherence...', time: timeStr(), type: 'info' }]);
+            setLogs(prev => [...prev, { text: 'WARDEN: Checking integrity of forge...', time: timeStr(), type: 'info' }]);
 
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise(r => setTimeout(r, 800));
             setAgentStatuses(prev => ({ ...prev, warden: 'complete' }));
-            setLogs(prev => [...prev, { text: 'READY: Your custom course is ready for launch.', time: timeStr(), type: 'success' }]);
-
-            // Map backend "chapters" to frontend "modules"
-            const mappedCourse = {
-                ...course,
-                modules: course.chapters.map(ch => ({
-                    id: `ch-${ch.order}`,
-                    title: ch.title,
-                    type: 'theory', // default
-                    completed: false,
-                    objective: ch.objective,
-                    content: { text: ch.content_summary },
-                    key_concepts: ch.key_concepts
-                }))
-            };
+            setLogs(prev => [...prev, { text: 'READY: Neural path established.', time: timeStr(), type: 'success' }]);
 
             setTimeout(() => {
-                setGeneratedCourse(mappedCourse);
-                commitCourse(mappedCourse);
+                setGeneratedCourse(course);
+                commitCourse(course);
                 setPhase('ready');
-            }, 1000);
+            }, 800);
 
         } catch (error) {
-            console.error('Generation failed:', error);
-            setLogs(prev => [...prev, { text: `ERROR: ${error.message}`, time: timeStr(), type: 'error' }]);
-            setAgentStatuses(prev => ({ ...prev, architect: 'error' }));
-            // Optional: allow user to go back
-            setTimeout(() => setPhase('input'), 3000);
+            console.error('Forging failed:', error);
+            setLogs(prev => [...prev, { text: `CRITICAL_FAILURE: ${error.message}`, time: timeStr(), type: 'error' }]);
+            setAgentStatuses(prev => ({ 
+                architect: 'error', 
+                scribe: 'error', 
+                illustrator: 'error', 
+                warden: 'error' 
+            }));
+            setTimeout(() => setPhase('input'), 4000);
         }
     };
 
