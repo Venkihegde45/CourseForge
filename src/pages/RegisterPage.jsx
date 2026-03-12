@@ -124,7 +124,7 @@ const RegisterPage = () => {
         if (!agreed) { setError('Please accept the Terms to continue.'); return; }
         setIsLoading(true);
         try {
-            await registerUser(name, email, password);
+            await registerUser(name, email, age, password);
             setIsLoading(false);
             setSuccess(true);
             setTimeout(() => navigate('/dashboard'), 1800);

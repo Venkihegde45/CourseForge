@@ -14,10 +14,12 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
+    password_hash = Column(String)
     name = Column(String)
+    age = Column(Integer, nullable=True)
     xp = Column(Integer, default=0)
     streak_days = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     courses = relationship("Course", back_populates="owner")
     progress = relationship("CourseProgress", back_populates="user")

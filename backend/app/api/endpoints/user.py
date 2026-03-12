@@ -3,13 +3,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.core.security import get_current_user
-from app.api.deps import get_db
-from app.models.user import User
-from app.models.course import Course, Topic, Module
+from app.api.deps import get_current_user, get_db
 from app.agents.mapper_agent import generate_knowledge_graph
 from app.core.cache import knowledge_map_cache
-from app.models.models import CourseProgress
+from app.models.models import User, Course, Topic, Module, CourseProgress
 from app.schemas.user import User as UserSchema
 
 router = APIRouter()
@@ -23,6 +20,7 @@ def get_user_stats(
     """
     return current_user
 
+@router.get("/summary")
 @router.get("/learning-summary")
 def get_learning_summary(
     db: Session = Depends(get_db),

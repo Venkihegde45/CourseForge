@@ -13,6 +13,7 @@ class QuizSchema(BaseModel):
         from_attributes = True
 
 class TopicSchema(BaseModel):
+    id: int
     order: int
     title: str
     beginner_content: str
@@ -27,6 +28,7 @@ class TopicSchema(BaseModel):
         from_attributes = True
 
 class ModuleSchema(BaseModel):
+    id: Optional[int] = None
     order: int
     title: str
     description: str

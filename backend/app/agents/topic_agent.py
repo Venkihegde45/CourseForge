@@ -1,85 +1,72 @@
 """
-Topic Specialist Agent
-Powered by Google Gemini.
+Topic Agent
 Generates deep, multi-level content for a specific topic, including quizzes and flashcards.
 """
 import json
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage
-from app.core.config import settings
-
-# Initialize the Gemini model
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.0-flash",
-    google_api_key=settings.GEMINI_API_KEY,
-    temperature=0.7,
-)
+from app.core.llm import invoke_with_retry
 
 SYSTEM_PROMPT = """You are an elite educational content creator. Your goal is to explain complex topics with absolute clarity across three levels of expertise.
 
-You MUST respond with ONLY a valid JSON object.
-
-The JSON structure:
+You MUST return your response as a valid JSON object with this exact schema:
 {
-  "beginner_content": "150-300 words. Simple language, no jargon, focus on WHAT and WHY.",
-  "intermediate_content": "200-400 words. Technical details, practical application, HOW it works internally.",
-  "expert_content": "300-500 words. Architecture, performance, edge cases, industry standards.",
-  "examples": ["Example 1 description", "Example 2 description"],
-  "analogies": ["Analogy 1", "Analogy 2"],
-  "summary": "A concise 2-3 sentence wrap-up.",
+  "beginner_content": "Simple, accessible explanation of the topic (2-3 paragraphs)",
+  "intermediate_content": "More detailed explanation with technical depth (2-3 paragraphs)",
+  "expert_content": "Advanced-level deep explanation (2-3 paragraphs)",
+  "examples": ["Practical example 1", "Practical example 2", "Practical example 3"],
+  "analogies": ["Mental model/analogy 1", "Mental model/analogy 2"],
+  "summary": "A concise 2-3 sentence summary of the entire topic.",
   "quizzes": [
     {
-      "question": "The question text",
-      "options": ["Opt A", "Opt B", "Opt C", "Opt D"],
+      "question": "Quiz question text?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
       "correct_answer": 0,
-      "explanation": "Why this is correct",
-      "difficulty": "easy"
+      "explanation": "Why this is correct.",
+      "difficulty": "medium"
     }
   ],
   "flashcards": [
-    {
-      "front": "Term or Question",
-      "back": "Definition or Answer"
-    }
+    { "front": "Key term or concept", "back": "Definition or explanation" }
   ]
 }
 
-Ensure the content is engaging, accurate, and follows the word count guidelines."""
+RULES:
+- Return ONLY valid JSON, no markdown wrapping.
+- Be technical but accessible.
+- Include at least 3 quizzes and 3 flashcards.
+"""
 
-def generate_topic_content(course_title: str, module_title: str, topic_title: str) -> dict:
+def generate_topic_content(course_title: str, module_title: str, topic_title: str, context_text: str = "") -> dict:
     """
-    Generates detailed content for a topic within its course context.
+    Generates educational content for a topic within a course/module context.
     """
-    user_prompt = f"""Generate comprehensive educational content for the following topic:
+    user_prompt = f"Course: {course_title}\nModule: {module_title}\nTopic: {topic_title}\n"
+    if context_text:
+        user_prompt += f"Context/Source Materials: {context_text}\n"
+    
+    user_prompt += "\nPlease generate comprehensive educational content for this topic following the structured JSON guidelines."
 
-Course: {course_title}
-Module: {module_title}
-Topic: {topic_title}
-
-Requirements:
-1. Provide 3 levels of explanation (Beginner, Intermediate, Expert).
-2. Include 2-3 practical examples and 2-3 analogies.
-3. Generate 3-5 quiz questions of varying difficulty (easy, medium, hard).
-4. Generate 3-5 high-quality flashcards.
-5. Respond ONLY with the JSON object."""
-
-    messages = [
-        SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=user_prompt),
-    ]
-
-    response = llm.invoke(messages)
-    raw = response.content.strip()
+    raw = invoke_with_retry(
+        prompt=user_prompt,
+        system_instruction=SYSTEM_PROMPT
+    ).strip()
 
     # Clean up markdown if necessary
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        elif raw.startswith("\n"):
-            raw = raw[1:]
-    raw = raw.strip()
-    if raw.endswith("```"):
-        raw = raw[:-3].strip()
-
-    return json.loads(raw)
+    if raw.startswith("```json"):
+        raw = raw.split("```json")[1].split("```")[0].strip()
+    elif raw.startswith("```"):
+        raw = raw.split("```")[1].split("```")[0].strip()
+    
+    try:
+        return json.loads(raw)
+    except:
+        # Fallback to structured dictionary if JSON parsing fails
+        return {
+            "beginner_content": raw,
+            "intermediate_content": "",
+            "expert_content": "",
+            "examples": [],
+            "analogies": [],
+            "summary": f"Content for {topic_title}",
+            "quizzes": [],
+            "flashcards": []
+        }

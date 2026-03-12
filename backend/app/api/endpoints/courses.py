@@ -1,5 +1,8 @@
-from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+import time
+from typing import Any, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Body
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -17,8 +20,20 @@ from app.services.certificate_service import generate_certificate_pdf
 
 router = APIRouter()
 
-def save_course_to_db(syllabus: dict, title: str, difficulty: str, owner_id: int, db: Session, source_type: str = "text") -> CourseResponse:
+def save_course_to_db(
+    syllabus: dict, 
+    title: str, 
+    difficulty: str, 
+    owner_id: int, 
+    db: Session, 
+    source_type: str = "text",
+    existing_id: Optional[int] = None
+) -> CourseResponse:
     """Helper to save a generated syllabus to the database and format the response."""
+    if existing_id:
+        db_course = db.query(Course).filter(Course.id == existing_id).first()
+        if db_course:
+            return db_course
     # Map difficulty string to our enum
     difficulty_map = {
         "starter": DifficultyLevel.STARTER,
@@ -53,7 +68,7 @@ def save_course_to_db(syllabus: dict, title: str, difficulty: str, owner_id: int
         db.flush() # Use flush to get db_module.id before commit
 
         topics_out = []
-        for j, top_data in enumerate(mod_data.get("topics", [])):
+        for j, top_data in enumerate(mod_data.get("lessons", [])): # Changed from 'topics' to 'lessons'
             db_topic = Topic(
                 module_id=db_module.id,
                 title=top_data["title"],
@@ -63,11 +78,12 @@ def save_course_to_db(syllabus: dict, title: str, difficulty: str, owner_id: int
                 expert_content="",
                 examples=[],
                 analogies=[],
-                summary=""
+                summary=top_data.get("summary", "") # Pre-populate summary
             )
             db.add(db_topic)
+            db.flush() # Get ID for TopicSchema
             topics_out.append(TopicSchema(
-                id=db_topic.id, # Now we have the ID from flush
+                id=db_topic.id,
                 order=db_topic.order,
                 title=db_topic.title,
                 beginner_content="",
@@ -75,11 +91,12 @@ def save_course_to_db(syllabus: dict, title: str, difficulty: str, owner_id: int
                 expert_content="",
                 examples=[],
                 analogies=[],
-                summary="",
+                summary=db_topic.summary,
                 quizzes=[]
             ))
         
         modules_out.append(ModuleSchema(
+            id=db_module.id,
             order=db_module.order,
             title=db_module.title,
             description=db_module.description,
@@ -107,7 +124,19 @@ def generate_course(
     current_user: User = Depends(get_current_user),
 ):
     """Generates a course syllabus using AI and saves it to the database."""
+    # CACHE CHECK: Look for existing course by this user with this topic
+    existing = db.query(Course).filter(
+        Course.owner_id == current_user.id,
+        Course.title.ilike(f"%{req.topic}%")
+    ).first()
+    
+    if existing:
+        # If found, return the existing structure
+        # We need to build the full response with modules and topics
+        return save_course_to_db({}, req.topic, req.difficulty, current_user.id, db, existing_id=existing.id)
+
     try:
+        time.sleep(3) # Buffer for rate limits
         syllabus = generate_course_syllabus(req.topic, req.difficulty)
         return save_course_to_db(syllabus, req.topic, req.difficulty, current_user.id, db, source_type="text")
     except Exception as e:
@@ -133,6 +162,7 @@ async def generate_from_file(
         context_text = ingestion_service.extract_text_from_pdf(content)
         title = file.filename.rsplit(".", 1)[0]
         
+        time.sleep(3) # Buffer for rate limits
         syllabus = generate_course_syllabus(title, difficulty, context_text)
         return save_course_to_db(syllabus, title, difficulty, current_user.id, db)
     except Exception as e:
@@ -147,6 +177,15 @@ async def generate_from_url(
     current_user: User = Depends(get_current_user)
 ):
     """Generates a course from a YouTube URL or Web Link."""
+    # CACHE CHECK: Look for existing course by this user from this URL
+    existing = db.query(Course).filter(
+        Course.owner_id == current_user.id,
+        Course.description.ilike(f"%{url}%") # Storing URL in description for source-track
+    ).first()
+
+    if existing:
+        return save_course_to_db({}, "Web Analysis", difficulty, current_user.id, db, existing_id=existing.id)
+
     try:
         if "youtube.com" in url or "youtu.be" in url:
             context_text = ingestion_service.extract_youtube_transcript(url)
@@ -155,6 +194,7 @@ async def generate_from_url(
             context_text = ingestion_service.scrape_web_page(url)
             title = "Web Analysis"
 
+        time.sleep(3) # Buffer for rate limits
         syllabus = generate_course_syllabus(title, difficulty, context_text)
         return save_course_to_db(syllabus, title, difficulty, current_user.id, db)
     except Exception as e:
@@ -240,6 +280,27 @@ def get_topic_content(
             status_code=503,
             detail=f"Topic content generation failed: {str(e)}"
         )
+
+@router.post("/topics/{topic_id}/complete")
+def complete_topic(
+    topic_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Marks a topic as completed and awards XP."""
+    topic = db.query(Topic).join(Module).join(Course).filter(
+        Topic.id == topic_id,
+        Course.owner_id == current_user.id
+    ).first()
+
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+
+    # Award XP for completing a topic
+    current_user.xp += 50
+    db.commit()
+
+    return {"status": "completed", "xp_awarded": 50, "topic_id": topic_id}
 
 @router.post("/{course_id}/mentor")
 def mentor_chat(

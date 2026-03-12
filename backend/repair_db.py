@@ -1,16 +1,27 @@
 from sqlalchemy import text
-from app.core.database import engine
+from app.core.database import engine, Base
+from app.models import models
 
-def repair():
-    with engine.begin() as conn:
-        try:
-            conn.execute(text('ALTER TABLE courses ADD COLUMN description TEXT;'))
-            print("Successfully added 'description' column to 'courses' table.")
-        except Exception as e:
-            if "already exists" in str(e).lower():
-                print("Column 'description' already exists.")
-            else:
-                print(f"Error: {e}")
+def clean_and_init_db():
+    with engine.begin() as connection:
+        # Get all table names
+        result = connection.execute(text("""
+            SELECT tablename FROM pg_catalog.pg_tables 
+            WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema'
+        """))
+        tables = [row[0] for row in result]
+        
+        if tables:
+            print(f"Dropping tables: {', '.join(tables)}")
+            # Drop all tables with Cascade
+            connection.execute(text(f"DROP TABLE IF EXISTS {', '.join(tables)} CASCADE"))
+            print("Legacy tables dropped successfully.")
+        else:
+            print("No tables found to drop.")
+
+    print("Creating new tables...")
+    Base.metadata.create_all(bind=engine)
+    print("Database initialization complete.")
 
 if __name__ == "__main__":
-    repair()
+    clean_and_init_db()

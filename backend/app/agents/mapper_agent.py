@@ -1,7 +1,6 @@
 import os
 import json
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.schema import SystemMessage, HumanMessage
+from app.core.llm import invoke_with_retry
 
 SYSTEM_PROMPT = """You are the 'CourseForge Cartographer'. Your job is to analyze a collection of courses and find semantic connections between them.
 
@@ -24,20 +23,17 @@ def generate_knowledge_graph(courses: list) -> dict:
     if not courses:
         return {"nodes": [], "links": []}
 
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=os.getenv("GEMINI_API_KEY"))
-    
     course_data = "\n".join([
         f"ID: {c['id']} | Title: {c['title']} | Category: {c['category']} | Desc: {c['description']}" 
         for c in courses
     ])
     
-    response = llm.invoke([
-        SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=f"Analyze these courses and generate a semantic graph:\n{course_data}")
-    ])
+    content = invoke_with_retry(
+        prompt=f"Analyze these courses and generate a semantic graph:\n{course_data}",
+        system_instruction=SYSTEM_PROMPT
+    )
     
     try:
-        content = response.content
         if "```json" in content: content = content.split("```json")[1].split("```")[0].strip()
         return json.loads(content)
     except Exception as e:

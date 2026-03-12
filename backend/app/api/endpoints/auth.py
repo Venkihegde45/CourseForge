@@ -23,14 +23,23 @@ def register(
     """
     Register a new user.
     """
-    user = crud_user.get_user_by_email(db, email=user_in.email)
-    if user:
+    try:
+        user = crud_user.get_user_by_email(db, email=user_in.email)
+        if user:
+            raise HTTPException(
+                status_code=400,
+                detail="A user with this email already exists.",
+            )
+        user = crud_user.create_user(db, user=user_in)
+        return user
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"Registration error: {e}")
         raise HTTPException(
-            status_code=400,
-            detail="A user with this email already exists.",
+            status_code=500,
+            detail=f"An error occurred during registration: {str(e)}"
         )
-    user = crud_user.create_user(db, user=user_in)
-    return user
 
 @router.post("/login", response_model=Token)
 def login_access_token(
@@ -39,14 +48,23 @@ def login_access_token(
     """
     OAuth2 compatible token login, get an access token for future requests
     """
-    user = crud_user.get_user_by_email(db, email=form_data.username) # OAuth2 expects 'username' field, which is our email
-    if not user or not security.verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
-    
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return {
-        "access_token": security.create_access_token(
-            user.id, expires_delta=access_token_expires
-        ),
-        "token_type": "bearer",
-    }
+    try:
+        user = crud_user.get_user_by_email(db, email=form_data.username)
+        if not user or not security.verify_password(form_data.password, user.password_hash):
+            raise HTTPException(status_code=400, detail="Incorrect email or password")
+        
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        return {
+            "access_token": security.create_access_token(
+                user.id, expires_delta=access_token_expires
+            ),
+            "token_type": "bearer",
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"Login error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred during login: {str(e)}"
+        )

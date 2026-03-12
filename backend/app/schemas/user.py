@@ -5,6 +5,7 @@ from typing import Optional
 class UserBase(BaseModel):
     email: EmailStr
     name: Optional[str] = None
+    age: Optional[int] = None
 
 # Properties to receive via API on creation
 class UserCreate(UserBase):

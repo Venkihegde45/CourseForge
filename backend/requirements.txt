@@ -12,7 +12,7 @@ google-generativeai
 google-generativeai==0.8.2
 pdfplumber==0.10.3
 pytesseract==0.3.10
-Pillow==10.1.0
+Pillow>=10.1.0
 whisper==1.1.10
 youtube-dl==2021.12.17
 beautifulsoup4==4.12.2
@@ -21,7 +21,13 @@ celery==5.3.4
 redis==5.0.1
 python-dotenv==1.0.0
 aiofiles==23.2.1
-langchain==0.0.340
-langchain-openai==0.0.2
-chromadb==0.4.18
-numpy==1.26.2
+langchain>=0.1.0
+langchain-openai>=0.1.0
+chromadb>=0.5.0
+numpy>=1.26.4
+PyMuPDF>=1.22.0
+youtube-transcript-api>=0.6.1
+reportlab>=4.0.0
+qrcode>=7.4.2
+passlib[bcrypt]
+bcrypt==4.0.1

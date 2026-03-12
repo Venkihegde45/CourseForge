@@ -59,7 +59,8 @@ const PlayerPage = () => {
     const [difficulty, setDifficulty] = useState('beginner');
     const [isLoading, setIsLoading] = useState(false);
 
-    const activeModule = currentCourse?.modules?.[activeModuleIndex] || { topics: [] };
+    const modules = currentCourse?.modules?.map(m => ({ ...m, topics: m.topics || m.lessons || [] })) || [];
+    const activeModule = modules[activeModuleIndex] || { topics: [] };
     const activeTopic = activeModule.topics?.[activeTopicIndex];
 
     useEffect(() => {
@@ -158,17 +159,17 @@ const PlayerPage = () => {
                     <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                         <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-6 font-mono">Curriculum_Map.v2</h3>
                         <div className="space-y-4">
-                            {currentCourse.modules.map((mod, mIdx) => (
-                                <div key={mod.id} className="space-y-2">
+                            {modules.map((mod, mIdx) => (
+                                <div key={mod.id || `mod-${mIdx}`} className="space-y-2">
                                     <div className="px-2 py-1 flex items-center justify-between">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-white/10">Module {mIdx + 1}</p>
                                         <div className="h-px w-full bg-white/5 ml-4" />
                                     </div>
                                     <h4 className="px-2 text-xs font-black text-white/60 mb-2">{mod.title}</h4>
                                     <div className="space-y-1">
-                                        {mod.topics.map((topic, tIdx) => (
+                                        {(mod.topics || []).map((topic, tIdx) => (
                                             <button
-                                                key={topic.id}
+                                                key={topic.id || `topic-${mIdx}-${tIdx}`}
                                                 onClick={() => updateProgress(mIdx, tIdx)}
                                                 className={cn(
                                                     "w-full px-4 py-3 rounded-xl flex items-center gap-3 transition-all group",
@@ -295,13 +296,13 @@ const PlayerPage = () => {
                                     await completeTopic(activeTopic.id);
                                 }
 
-                                if (activeTopicIndex < activeModule.topics.length - 1) {
+                                if (activeTopicIndex < (activeModule.topics || []).length - 1) {
                                     updateProgress(activeModuleIndex, activeTopicIndex + 1);
-                                } else if (activeModuleIndex < currentCourse.modules.length - 1) {
+                                } else if (activeModuleIndex < modules.length - 1) {
                                     updateProgress(activeModuleIndex + 1, 0);
                                 }
                             }}
-                            disabled={activeModuleIndex === currentCourse.modules.length - 1 && activeTopicIndex === activeModule.topics.length - 1}
+                            disabled={activeModuleIndex === modules.length - 1 && activeTopicIndex === (activeModule.topics || []).length - 1}
                             className="px-6 py-3 bg-white text-black font-black rounded-xl flex items-center gap-3 hover:bg-primary hover:text-white transition-all text-xs uppercase tracking-widest disabled:opacity-20"
                         >
                             Continue <ArrowRight className="w-4 h-4" />

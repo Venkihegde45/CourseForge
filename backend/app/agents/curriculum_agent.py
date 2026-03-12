@@ -1,85 +1,54 @@
-"""
-Curriculum Architect Agent
-Powered by Google Gemini.
-Generates a structured course syllabus (Modules and Topics) as JSON.
-"""
 import json
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage
-from app.core.config import settings
+from app.core.llm import invoke_with_retry
 
-# Initialize the Gemini model
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.0-flash", # Using flash for speed/cost
-    google_api_key=settings.GEMINI_API_KEY,
-    temperature=0.7,
-)
+SYSTEM_PROMPT = """You are an expert curriculum designer. Your goal is to break down a user's chosen topic into a logical, high-quality course syllabus.
+The syllabus must be structured into 'Modules', and each module must contain 'Lessons' (Topics).
 
-SYSTEM_PROMPT = """You are an expert curriculum architect. Your job is to create a structured, 
-comprehensive course syllabus from a given topic.
-
-You MUST respond with ONLY a valid JSON object — no markdown, no explanation, no backticks.
-
-The JSON must follow this exact structure:
+SYLLABUS REQUIREMENTS:
+1. Provide a course title and a short description.
+2. Structure the course into 4-6 Modules.
+3. Each Module SHOULD have 3-5 Lessons (Topics).
+4. Return the result STRICTLY as a JSON object with this schema:
 {
-  "title": "Course Title Here",
-  "description": "A one-paragraph description of this course",
-  "difficulty": "starter",
+  "title": "Course Title",
+  "description": "Short description",
   "modules": [
     {
-      "order": 1,
-      "title": "Module Title",
-      "description": "Short description of the module",
-      "topics": [
-        {
-          "order": 1,
-          "title": "Specific Topic Title"
-        }
+      "title": "Module Name",
+      "description": "Module summary",
+      "lessons": [
+        { "title": "Lesson name", "summary": "One sentence summary" }
       ]
     }
   ]
 }
+5. Content should be beginner-friendly.
+"""
 
-Create 4-6 modules. Each module should contain 4-8 specific topics. 
-Be thorough, educational, and ensure a logical learning flow from basics to advanced."""
-
-def generate_course_syllabus(topic: str, difficulty: str = "Beginner", context_text: str = None) -> dict:
+def generate_course_syllabus(topic: str, difficulty: str = "Beginner") -> dict:
     """
-    Generates a course syllabus using the LangChain Gemini model.
-    If context_text is provided, it grounds the curriculum in that specific material.
+    Generates a full course structure using AI.
     """
-    user_prompt_parts = [f"Create a complete {difficulty}-level course on the following topic:"]
-    user_prompt_parts.append(f"Topic: {topic}")
+    prompt = f"Topic: {topic}\nDifficulty: {difficulty}\n\nPlease generate a structured learning course as JSON."
 
-    if context_text:
-        # Limit context_text to avoid exceeding token limits, 15000 chars is a rough estimate
-        user_prompt_parts.append(f"\nBase the following curriculum strictly on this source material:\n{context_text[:15000]}")
+    content = invoke_with_retry(
+        prompt=prompt,
+        system_instruction=SYSTEM_PROMPT
+    ).strip()
 
-    user_prompt_parts.append("\nGenerate a structured syllabus with 4-6 modules and clear topic titles.")
-    user_prompt_parts.append("Remember: respond ONLY with the JSON object.")
-    
-    user_prompt = "\n".join(user_prompt_parts)
+    # Clean up markdown if necessary
+    if content.startswith("```json"):
+        content = content.split("```json")[1].split("```")[0].strip()
+    elif content.startswith("```"):
+        content = content.split("```")[1].split("```")[0].strip()
 
-    messages = [
-        SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=user_prompt),
-    ]
-
-    response = llm.invoke(messages)
-    raw = response.content.strip()
-
-    # Clean up if Gemini wrapped in markdown code blocks
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        elif raw.startswith("\n"):
-            raw = raw[1:]
-    
-    # Final strip to be safe
-    raw = raw.strip()
-    if raw.endswith("```"):
-        raw = raw[:-3].strip()
-
-    course_data = json.loads(raw)
-    return course_data
+    try:
+        return json.loads(content)
+    except Exception as e:
+        print(f"Failed to parse syllabus JSON: {e}")
+        # Return a minimal valid structure if parsing fails
+        return {
+            "title": topic,
+            "description": f"AI-Generated course on {topic}",
+            "modules": []
+        }
